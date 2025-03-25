@@ -1,3 +1,6 @@
+# Notes
+**THIS PACKAGE IS UNDER DEVELOPMENT ERRORS MAY OCCUR!**
+
 # Jarvis Package
 
 This is a Python package that provides a simple assistant framework with three modules:

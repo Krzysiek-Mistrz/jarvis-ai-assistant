@@ -40,7 +40,6 @@ class Query(object):
                 os.system("pkill firefox")
 
     def query(self, query):
-        while True:
             if 'wikipedia' in query:
                 self.jarvis_core.speak("searching wikipedia...")
                 query = query.replace("wikipedia", "")
@@ -299,10 +298,8 @@ class Query(object):
                     return
                 except Exception as e:
                     self.jarvis_core.speak("could not understand calculation")
-                    continue
 
                 def get_operator_fn(op):
-                    # return the operator function based on the operator string
                     return {
                         '+' : operator.add,
                         '-' : operator.sub,
@@ -311,7 +308,6 @@ class Query(object):
                     }[op]
 
                 def eval_binary_expr(op1, oper, op2):
-                    # evaluate a binary expression
                     op1, op2 = int(op1), int(op2)
                     return get_operator_fn(oper)(op1, op2)
 

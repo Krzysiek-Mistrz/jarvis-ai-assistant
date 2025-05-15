@@ -5,6 +5,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 from .queries import Query
 
 class Jarvis:
@@ -12,7 +13,7 @@ class Jarvis:
     Core Jarvis assistant.
     """
 
-    def __init__(self, api_key: str, rate: int = 125, voice: int = 0, volume: float = 1.0):
+    def __init__(self, api_key: str, rate: int = 95, voice: int = 3, volume: float = 1.0):
         self.api_key = api_key
         self.rate = rate              # speaking rate (words per minute)
         self.voice = voice            # index into available voices
@@ -42,6 +43,8 @@ class Jarvis:
     def speak(self, text: str):
         self.engine.say(text)
         self.engine.runAndWait()
+        # pause so mic doesn't hear Jarvis's own voice
+        time.sleep(5)
 
     def wish_me(self):
         hour = datetime.datetime.now().hour
@@ -56,8 +59,10 @@ class Jarvis:
     def recognize_speech(self) -> str:
         recognizer = sr.Recognizer()
         with sr.Microphone() as source:
+            print("Calibrating for ambient noise…")
+            # longer calibration to ignore residual TTS
+            recognizer.adjust_for_ambient_noise(source, duration=1)
             print("Listening…")
-            recognizer.adjust_for_ambient_noise(source)
             audio = recognizer.listen(source)
         try:
             print("Recognizing…")

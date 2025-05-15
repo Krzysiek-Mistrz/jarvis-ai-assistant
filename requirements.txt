@@ -6,3 +6,6 @@ pyautogui
 pywhatkit
 PyAudio
 google-genai
+cv2
+requests
+webbrowser

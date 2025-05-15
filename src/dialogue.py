@@ -1,7 +1,4 @@
-import speech_recognition as sr
 from google import genai
-import pyttsx3
-import platform
 
 # TODO
 # Implement functuion to open external cli to chat with jarvis

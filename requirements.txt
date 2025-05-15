@@ -5,3 +5,4 @@ wikipedia
 pyautogui
 pywhatkit
 PyAudio
+google-genai

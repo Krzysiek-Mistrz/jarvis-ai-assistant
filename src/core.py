@@ -80,15 +80,6 @@ class Jarvis:
             print("Sorry, I did not catch that.")
             return ""
 
-    def open_file(self, filepath: str):
-        sys_os = platform.system()
-        if sys_os == "Windows":
-            os.startfile(filepath)
-        elif sys_os == "Darwin":
-            subprocess.call(["open", filepath])
-        else:
-            subprocess.call(["xdg-open", filepath])
-
     def kill_process(self, process_name: str, mac_name: str = None):
         sys_os = platform.system()
         if sys_os == "Windows":
@@ -98,24 +89,6 @@ class Jarvis:
             os.system(f"killall {name}")
         else:
             os.system(f"pkill -f {process_name}")
-
-    def shutdown_system(self):
-        sys_os = platform.system()
-        if sys_os == "Windows":
-            os.system("shutdown /s /t 5")
-        elif sys_os == "Darwin":
-            os.system("sudo shutdown -h now")
-        else:
-            os.system("shutdown -h now")
-
-    def restart_system(self):
-        sys_os = platform.system()
-        if sys_os == "Windows":
-            os.system("shutdown /r /t 5")
-        elif sys_os == "Darwin":
-            os.system("sudo shutdown -r now")
-        else:
-            os.system("shutdown -r now")
 
     def open_terminal(self):
         sys_os = platform.system()

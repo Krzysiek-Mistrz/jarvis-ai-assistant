@@ -13,8 +13,8 @@ import datetime
 import os
 import speech_recognition as sr
 import subprocess
-#from submodules
 from .dialogue import ai_dialogue
+        
 
 class Query(object):
     def __init__(self, jarvis, api_key):
@@ -58,8 +58,8 @@ class Query(object):
                     self.jarvis_core.speak(f"Sorry, I couldn't find information on Wikipedia for '{query}'.")
                 return
 
-            elif "channel analytics" in query:
-                webbrowser.open("https://studio.youtube.com/channel/UCxeYbp9rU_HuIwVcuHvK0pw/analytics/tab-overview/period-default")
+            elif "analytics" in query:
+                webbrowser.open("https://studio.youtube.com/channel/")
                 return
 
             elif 'search on youtube' in query:
@@ -85,159 +85,123 @@ class Query(object):
                 else:
                     self.jarvis_core.kill_process("chrome")
                     return
+                
+            elif 'close mozilla' in query or 'close firefox' in query:
+                self.close_browser('firefox')
+                return
 
-            elif 'close youtube' in query:
-                self.jarvis_core.speak("closing browser")
-                # assuming youtube runs in edge on windows; adjust if needed
-                sys_os = platform.system()
-                if sys_os == "Windows":
-                    self.jarvis_core.kill_process("msedge.exe")
-                    return
-                elif sys_os == "Darwin":
-                    self.jarvis_core.kill_process("Microsoft Edge", "Microsoft Edge")
-                    return
-                else:
-                    self.jarvis_core.kill_process("msedge")
-                    return
-
-            elif 'open google' in query or 'open chrome' in query:
+            elif 'open google' in query or 'open chrome' in query or 'open browser' in query:
                 sys_os = platform.system()
                 self.jarvis_core.speak("what should i search?")
                 search_query = self.jarvis_core.recognize_speech().lower()
                 if sys_os == "Windows":
                     os.startfile(r"C:\Program Files\Mozilla Firefox\firefox.exe")
                 elif sys_os == "Darwin":
+                    self.jarvis_core.speak("I haven't found google but I found something instead")
                     subprocess.call(["open", "-a", "Firefox"])
-                else:  # assume Linux
+                else:
+                    self.jarvis_core.speak("I haven't found google but I found something instead")
                     subprocess.call(["firefox"])
                 webbrowser.open(f"https://www.google.com/search?q={search_query}")
                 return
 
-            elif 'close google' in query or 'close chrome' in query:
-                self.close_browser('chrome')
-                return
-
-            elif 'close mozilla' in query or 'close firefox' in query:
-                self.close_browser('firefox')
-                return
-
-            elif 'maximize this window' in query:
-                # TODO
+            elif 'maximize' in query and 'window' in query:
                 pyautogui.hotkey('alt', 'space')
                 time.sleep(1)
                 pyautogui.press('x')
                 return
 
-            elif 'minimise this window' in query:
-                # TODO
+            elif 'minimise' in query and 'window' in query:
                 pyautogui.hotkey('alt', 'space')
                 time.sleep(1)
                 pyautogui.press('n')
                 return
 
-            elif 'google search' in query:
-                # perform google search in current browser
-                query = query.replace("google search", "").strip()
+            elif 'search' in query and ('browser' in query or 'google' in query or 'firefox' in query or 'edge' in query or 'youtube' in query):
+                query = query.replace("search", "").strip()
                 pyautogui.hotkey('alt', 'd')
                 time.sleep(0.5)
                 pyautogui.write(query, interval=0.1)
                 pyautogui.press('enter')
                 return
 
-            elif 'youtube search' in query:
-                # perform youtube search in current browser
-                query = query.replace("youtube search", "").strip()
-                pyautogui.hotkey('alt', 'd')
-                time.sleep(0.5)
-                for _ in range(4):
-                    pyautogui.press('tab')
-                    time.sleep(0.2)
-                pyautogui.write(query, interval=0.1)
-                pyautogui.press('enter')
-                return
-
-            elif 'open new window' in query:
-                # TODO
+            elif 'open' and ('window' in query or 'new' in query):
                 pyautogui.hotkey('ctrl', 'n')
                 return
 
-            elif 'open incognito window' in query:
+            elif 'open' in query and 'incognito' in query:
                 pyautogui.hotkey('ctrl', 'shift', 'n')
                 pyautogui.hotkey('ctrl', 'shift', 'p')
                 return
 
-            elif 'open history' in query:
-                # open browser history
+            elif 'open' in query and 'history' in query:
                 pyautogui.hotkey('ctrl', 'h')
                 return
 
-            elif 'open downloads' in query:
-                # open browser downloads page
+            elif 'open' in query and 'download' in query:
                 pyautogui.hotkey('ctrl', 'j')
                 return
 
-            elif 'previous tab' in query:
-                # switch to previous tab
+            elif 'previous' in query and 'tab' in query:
                 pyautogui.hotkey('ctrl', 'shift', 'tab')
                 return
 
-            elif 'next tab' in query:
-                # switch to next tab
+            elif 'next' in query and 'tab' in query:
                 pyautogui.hotkey('ctrl', 'tab')
                 return
 
-            elif 'close tab' in query:
-                # close current tab
-                pyautogui.hotkey('ctrl', 'w')
+            elif 'close' in query and 'tab' in query:
+                self.jarvis_core.speak("closing current tab")
+                sys_os = platform.system()
+                if sys_os == "Darwin":
+                    pyautogui.hotkey('command', 'w')
+                else:
+                    pyautogui.hotkey('ctrl', 'w')
                 return
 
-            elif 'close window' in query:
-                # close current window
+            elif 'close' in query and 'window' in query:
                 pyautogui.hotkey('ctrl', 'shift', 'w')
                 return
 
-            elif 'clear browsing history' in query:
-                # open clear browsing data dialog; shortcut may vary by browser
+            elif 'clear' in query and ('browsing' in query or 'history' in query):
                 pyautogui.hotkey('ctrl', 'shift', 'delete')
                 return
 
-            # TODO
-            elif 'play music' in query:
-                # play a random music file from the music directory; adjust path as needed
-                music_dir = 'E:\\Musics' if platform.system() == "Windows" else os.path.expanduser("~/Music")
-                try:
-                    songs = os.listdir(music_dir)
-                    self.jarvis_core.open_file(os.path.join(music_dir, random.choice(songs)))
-                    return
-                except Exception:
-                    self.jarvis_core.speak("music directory not found or empty")
-            
-            elif 'close movie' in query or 'close music' in query:
-                self.jarvis_core.speak("closing media player")
+            elif 'open' in query and ('file' in query or 'music' in query):
+                self.jarvis_core.speak('give me your filepath')
+                filepath = self.jarvis_core.recognize_speech().lower()
                 sys_os = platform.system()
                 if sys_os == "Windows":
-                    self.jarvis_core.kill_process("vlc.exe")
-                    return
+                    os.startfile(filepath)
                 elif sys_os == "Darwin":
-                    self.jarvis_core.kill_process("VLC", "VLC")
-                    return
+                    subprocess.call(["open", filepath])
                 else:
-                    self.jarvis_core.kill_process("vlc")
-                    return
+                    subprocess.call(["xdg-open", filepath])
 
-            elif 'the time' in query:
-                # announce the current time
+            elif 'time' in query:
                 current_time = datetime.datetime.now().strftime("%H:%M:%S")
                 self.jarvis_core.speak(f"the time is {current_time}")
                 return
 
-            elif "shut down the system" in query:
+            elif 'shut down' in query and 'system' in query:
                 self.jarvis_core.speak("shutting down the system")
-                self.jarvis_core.shutdown_system()
+                sys_os = platform.system()
+                if sys_os == "Windows":
+                    os.system("shutdown /s /t 5")
+                elif sys_os == "Darwin":
+                    os.system("sudo shutdown -h now")
+                else:
+                    os.system("shutdown -h now")
 
             elif "restart the system" in query:
                 self.jarvis_core.speak("restarting the system")
-                self.jarvis_core.restart_system()
+                sys_os = platform.system()
+                if sys_os == "Windows":
+                    os.system("shutdown /r /t 5")
+                elif sys_os == "Darwin":
+                    os.system("sudo shutdown -r now")
+                else:
+                    os.system("shutdown -r now")
             
             elif "close notepad" in query:
                 self.jarvis_core.speak("closing text editor")
@@ -249,7 +213,7 @@ class Query(object):
                 else:
                     self.jarvis_core.kill_process("gedit")
 
-            elif "open command prompt" in query:
+            elif "open" in query and ("command prompt" in query or "cmd" in query):
                 self.jarvis_core.speak("opening terminal")
                 self.jarvis_core.open_terminal()
                 return
@@ -262,7 +226,6 @@ class Query(object):
                 elif sys_os == "Darwin":
                     self.jarvis_core.kill_process("Terminal", "Terminal")
                 else:
-                    # linux terminal closing may vary; pkill common terminals
                     for term in ["gnome-terminal", "konsole", "x-terminal-emulator"]:
                         self.jarvis_core.kill_process(term)
                 return
@@ -449,7 +412,6 @@ class Query(object):
                 # type the following text
                 query = query.replace("type", "")
                 pyautogui.write(query)
-                return
 
             # fallback to AI dialogue engine
             response = ai_dialogue(self.jarvis_core, self.api_key, query)

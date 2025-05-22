@@ -41,12 +41,21 @@ class Query(object):
 
     def query(self, query):
             if 'wikipedia' in query:
-                self.jarvis_core.speak("searching wikipedia...")
-                query = query.replace("wikipedia", "")
-                results = wikipedia.summary(query, sentences=2)
-                self.jarvis_core.speak("according to wikipedia")
-                print(results)
-                self.jarvis_core.speak(results)
+                self.jarvis_core.speak("Searching Wikipedia...")
+                query = query.replace("wikipedia", "", 1).strip()
+                if not query:
+                    self.jarvis_core.speak("What should I search on Wikipedia?")
+                    query = self.jarvis_core.recognize_speech().lower().strip()
+                    if not query:
+                        self.jarvis_core.speak("Sorry, I didn't catch a topic. Cancelling Wikipedia search.")
+                        return
+                try:
+                    results = wikipedia.summary(query, sentences=2)
+                    self.jarvis_core.speak("According to Wikipedia")
+                    print(results)
+                    self.jarvis_core.speak(results)
+                except wikipedia.exceptions.WikipediaException:
+                    self.jarvis_core.speak(f"Sorry, I couldn't find information on Wikipedia for '{query}'.")
                 return
 
             elif "channel analytics" in query:

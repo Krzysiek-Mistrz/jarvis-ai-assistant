@@ -7,7 +7,6 @@ def main():
         print("Error: Please set your GOOGLE_API_KEY environment variable.")
         api_key = input("Please set your GOOGLE_API_KEY: ")
 
-    # Konfiguracja nowego klienta
     client = genai.Client(api_key=api_key)
 
     jarvis = Jarvis(api_key=api_key)

@@ -9,3 +9,5 @@ google-genai
 cv2
 requests
 webbrowser
+gtts
+playsound

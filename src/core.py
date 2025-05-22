@@ -5,6 +5,9 @@ import os
 import platform
 import subprocess
 import time
+import tempfile
+from gtts import gTTS
+from playsound import playsound
 from .queries import Query
 
 class Jarvis:
@@ -35,12 +38,21 @@ class Jarvis:
         return engine
 
     def speak(self, text: str):
+        try:
+            tts_audio = gTTS(text=text, lang="en", slow=False)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+                tts_audio.write_to_fp(tmp)
+                tmp_path = tmp.name
+            playsound(tmp_path)
+            os.remove(tmp_path)
+        except Exception as e:
+            print(f"gTTS failed, falling back to pyttsx3: {e}")
             self.engine.say(text)
             self.engine.runAndWait()
-            recognizer = sr.Recognizer()
-            with sr.Microphone() as source:
-                recognizer.adjust_for_ambient_noise(source, duration=1.0)
-            time.sleep(0.3)
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            recognizer.adjust_for_ambient_noise(source, duration=1.0)
+        time.sleep(0.3)
 
     def wish_me(self):
         hour = datetime.datetime.now().hour

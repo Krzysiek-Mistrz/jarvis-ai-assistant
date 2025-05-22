@@ -14,36 +14,33 @@ class Jarvis:
 
     def __init__(self, api_key: str, rate: int = 95, voice: int = 3, volume: float = 1.0):
         self.api_key = api_key
-        self.rate = rate              # speaking rate (words per minute)
-        self.voice = voice            # index into available voices
-        self.volume = volume          # volume (0.0 to 1.0)
+        self.rate = rate
+        self.voice = voice
+        self.volume = volume
         self.engine = self.init_tts_engine()
 
     def init_tts_engine(self) -> pyttsx3.Engine:
         engine = pyttsx3.init()
         engine.setProperty("rate", self.rate)
         engine.setProperty("volume", self.volume)
-
         voices = engine.getProperty("voices")
-        # if supplied index is valid, use it
         if 0 <= self.voice < len(voices):
             engine.setProperty("voice", voices[self.voice].id)
         else:
-            # fallback: pick first English voice
             for v in voices:
-                # many voice.id or v.name strings contain 'en' or 'English'
                 if any(lang.startswith("en") for lang in getattr(v, "languages", [])) \
                    or "English" in v.name:
                     engine.setProperty("voice", v.id)
                     break
-
         return engine
 
     def speak(self, text: str):
-        self.engine.say(text)
-        self.engine.runAndWait()
-        # pause so mic doesn't hear Jarvis's own voice
-        time.sleep(5)
+            self.engine.say(text)
+            self.engine.runAndWait()
+            recognizer = sr.Recognizer()
+            with sr.Microphone() as source:
+                recognizer.adjust_for_ambient_noise(source, duration=1.0)
+            time.sleep(0.3)
 
     def wish_me(self):
         hour = datetime.datetime.now().hour
@@ -59,7 +56,6 @@ class Jarvis:
         recognizer = sr.Recognizer()
         with sr.Microphone() as source:
             print("Calibrating for ambient noise…")
-            # longer calibration to ignore residual TTS
             recognizer.adjust_for_ambient_noise(source, duration=1)
             print("Listening…")
             audio = recognizer.listen(source)

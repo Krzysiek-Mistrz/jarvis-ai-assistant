@@ -80,28 +80,6 @@ class Jarvis:
             print("Sorry, I did not catch that.")
             return ""
 
-    def kill_process(self, process_name: str, mac_name: str = None):
-        sys_os = platform.system()
-        if sys_os == "Windows":
-            os.system(f"taskkill /F /IM {process_name}")
-        elif sys_os == "Darwin":
-            name = mac_name or process_name
-            os.system(f"killall {name}")
-        else:
-            os.system(f"pkill -f {process_name}")
-
-    def open_terminal(self):
-        sys_os = platform.system()
-        if sys_os == "Windows":
-            os.system("start cmd")
-        elif sys_os == "Darwin":
-            subprocess.call(["open", "-a", "Terminal"])
-        else:
-            for term in ["gnome-terminal", "konsole", "x-terminal-emulator"]:
-                if os.system(f"which {term} > /dev/null 2>&1") == 0:
-                    subprocess.Popen([term])
-                    break
-
     def talk(self):
         self.wish_me()
         while True:

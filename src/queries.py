@@ -51,7 +51,7 @@ class Query(object):
         except Exception:
             return
 
-    def close_browser(self, browser: str):
+    def handle_close_browser(self, browser: str):
         """
         Closes the given browser by process name.
         browser: name like 'chrome', 'firefox', 'edge', etc.
@@ -82,10 +82,12 @@ class Query(object):
         else:
             self.jarvis_core.speak(f"I couldn't recognize the browser, sorry")
 
-    def open_browser(self, browser: str, search_query: str = None):
+    def handle_open_browser(self, browser: str, search_query: str = None):
         """
         Opens given browser from name specified by user
         """
+        self.jarvis_core.speak("What browser would you like to open?")
+        browser = self.jarvis_core.recognize_speech().lower()
         sys_os = platform.system()
         name = browser.lower()
         self.jarvis_core.speak("What would you like to watch?")

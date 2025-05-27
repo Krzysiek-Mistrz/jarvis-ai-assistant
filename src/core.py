@@ -89,13 +89,18 @@ class Jarvis:
                 self.speak("Goodbye!")
                 break
             intent, params = classify_intent(user_text, self.api_key)
+            #print(f"[DEBUG] classify_intent returned -> intent: '{intent}', params: {params}")
             query_handler = Query(self, self.api_key)
-            if intent != "fallback":
-                handler = getattr(query_handler, intent, None)
+            if intent and intent != "fallback":
+                normalized = intent.replace("-", "_").lower()
+                handler_name = f"handle_{normalized}"
+                handler = getattr(query_handler, handler_name, None)
                 if callable(handler):
                     try:
                         handler(**params)
                         continue
                     except Exception as e:
-                        print(f"Intent handler error: {e}")
+                        print(f"[ERROR] Intent handler '{handler_name}' raised: {e}")
+                else:
+                    print(f"[WARN] No handler found for intent '{intent}' (tried '{handler_name}')")
             query_handler.query(user_text)

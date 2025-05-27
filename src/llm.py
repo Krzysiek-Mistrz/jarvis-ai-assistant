@@ -94,11 +94,10 @@ def classify_intent(text: str, api_key: str, max_output_tokens: int = 100, tempe
         system_prompt += f"- {intent['name']}: {intent['description']}\n"
     system_prompt += (
         "\nRespond ONLY with a valid JSON object with two keys:\n"
-        "  intent: one of the names above, or 'fallback'\n"
+        "  intent: one of the handler method names above (example: 'kill_process' or 'volume_down'), or 'fallback'\n"
         "  params: an object with argument names and values (empty {} if none)\n"
         "Do not include any additional text."
     )
-
     gen_config = types.GenerateContentConfig(
         max_output_tokens=max_output_tokens,
         temperature=temperature,
@@ -108,9 +107,18 @@ def classify_intent(text: str, api_key: str, max_output_tokens: int = 100, tempe
         contents=[system_prompt, text],
         config=gen_config
     )
+    print('\n',response,'\n')
     raw = response.text.strip()
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        raw = "\n".join(lines).strip()
     try:
         data = json.loads(raw)
+        print('\n',data,'\n')
         intent = data.get("intent", "fallback")
         params = data.get("params", {}) or {}
     except Exception:

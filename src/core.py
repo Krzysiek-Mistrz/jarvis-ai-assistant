@@ -9,6 +9,7 @@ import tempfile
 from gtts import gTTS
 from playsound import playsound
 from .queries import Query
+from .llm import classify_intent
 
 class Jarvis:
     """
@@ -83,10 +84,20 @@ class Jarvis:
     def talk(self):
         self.wish_me()
         while True:
-            query = self.recognize_speech().lower()
-            if not query:
+            user_text = self.recognize_speech().lower()
+            if not user_text:
                 continue
-            if any(exit_word in query for exit_word in ("exit", "quit", "stop")):
+            if any(word in user_text for word in ("exit", "quit", "stop")):
                 self.speak("Goodbye!")
                 break
-            Query(self, self.api_key).query(query)
+            intent, params = classify_intent(user_text, self.api_key)
+            query_handler = Query(self, self.api_key)
+            if intent != "fallback":
+                handler = getattr(query_handler, intent, None)
+                if callable(handler):
+                    try:
+                        handler(**params)
+                        continue
+                    except Exception as e:
+                        print(f"Intent handler error: {e}")
+            query_handler.query(user_text)

@@ -5,7 +5,6 @@ import pyautogui
 import time
 import operator
 import requests
-import random
 import cv2
 import pywhatkit as kit
 import platform
@@ -14,14 +13,43 @@ import os
 import speech_recognition as sr
 import subprocess
 from pathlib import Path
-import re
-from .dialogue import ai_dialogue
-        
+from .llm import ai_dialogue
+
 
 class Query(object):
     def __init__(self, jarvis, api_key):
         self.jarvis_core = jarvis
         self.api_key = api_key
+
+    def handle_wikipedia(self, topic: str = None):
+        """
+        Search Wikipedia for a topic and speak summary.
+        """
+        self.jarvis_core.speak("Searching Wikipedia...")
+        if not topic:
+            self.jarvis_core.speak("What should I search on Wikipedia?")
+            topic = self.jarvis_core.recognize_speech().lower().strip()
+            if not topic:
+                self.jarvis_core.speak("Cancelling Wikipedia search.")
+                return
+        try:
+            results = wikipedia.summary(topic, sentences=2)
+            self.jarvis_core.speak("According to Wikipedia")
+            print(results)
+            self.jarvis_core.speak(results)
+        except wikipedia.exceptions.WikipediaException:
+            self.jarvis_core.speak(f"No info found for '{topic}' on Wikipedia.")
+
+    def handle_open_website(self):
+        """look for certain website on browser"""
+        try:
+            self.jarvis_core.speak("What would you like to search?")
+            query = self.jarvis_core.recognize_speech().lower()
+            search = query.replace(' ', '+')
+            url = f"https://www.google.com/search?q={search}"
+            webbrowser.open(url)
+        except Exception:
+            return
 
     def close_browser(self, browser: str):
         """
@@ -60,6 +88,8 @@ class Query(object):
         """
         sys_os = platform.system()
         name = browser.lower()
+        self.jarvis_core.speak("What would you like to watch?")
+        search_query = self.jarvis_core.recognize_speech().lower()
         try:
             if name == "chrome":
                 if sys_os == "Windows":
@@ -95,412 +125,220 @@ class Query(object):
         except Exception as e:
             self.jarvis_core.speak(f"I couldn't open the browser, sorry, error message is: {e}")
 
-    def kill_process(self, process_name: str, mac_name: str = None):
+    def handle_maximize_window(self):
+        pyautogui.hotkey('alt','space'); time.sleep(0.5); pyautogui.press('x')
+
+    def handle_minimize_window(self):
+        pyautogui.hotkey('alt','space'); time.sleep(0.5); pyautogui.press('n')
+
+    def handle_new_window(self):
+        pyautogui.hotkey('ctrl','n')
+
+    def handle_incognito(self):
+        pyautogui.hotkey('ctrl','shift','n'); pyautogui.hotkey('ctrl', 'shift', 'p')
+
+    def handle_open_history(self):
+        pyautogui.hotkey('ctrl','h')
+
+    def handle_open_downloads(self):
+        pyautogui.hotkey('ctrl','j')
+
+    def handle_prev_tab(self):
+        pyautogui.hotkey('ctrl','shift','tab')
+
+    def handle_next_tab(self):
+        pyautogui.hotkey('ctrl','tab')
+
+    def handle_close_tab(self):
+        key = 'command' if platform.system()=='Darwin' else 'ctrl'
+        self.jarvis_core.speak('Closing current tab')
+        pyautogui.hotkey(key,'w')
+
+    def handle_close_window(self):
+        pyautogui.hotkey('ctrl','shift','w')
+
+    def handle_clear_history(self):
+        pyautogui.hotkey('ctrl','shift','delete')
+
+    def handle_open_file(self):
+        self.jarvis_core.speak('give me your filepath')
+        filepath = self.jarvis_core.recognize_speech().lower()
+        path = Path(filepath).expanduser()
+        if not path.exists():
+            self.jarvis_core.speak("I couldn't locate the file, sorry")
+            return
+        if not os.access(path, os.R_OK):
+            self.jarvis_core.speak("I don't have sufficient permissions to open this file, sorry")
+            return
         sys_os = platform.system()
         if sys_os == "Windows":
-            os.system(f"taskkill /F /IM {process_name}")
+            os.startfile(filepath)
         elif sys_os == "Darwin":
-            name = mac_name or process_name
-            os.system(f"killall {name}")
+            subprocess.call(["open", filepath])
         else:
-            os.system(f"pkill -f {process_name}")
+            subprocess.call(["xdg-open", filepath])
 
-    def open_terminal(self):
-        sys_os = platform.system()
-        if sys_os == "Windows":
-            os.system("start cmd")
-        elif sys_os == "Darwin":
-            subprocess.call(["open", "-a", "Terminal"])
+    def handle_time(self):
+        now = datetime.datetime.now().strftime('%H:%M:%S')
+        self.jarvis_core.speak(f"The time is {now}")
+
+    def handle_shutdown_system(self):
+        self.jarvis_core.speak("Shutting down")
+        cmd = {'Windows':'shutdown /s /t 5','Darwin':'sudo shutdown -h now'}.get(platform.system(),'shutdown -h now')
+        os.system(cmd)
+
+    def handle_restart_system(self):
+        self.jarvis_core.speak("Restarting")
+        cmd = {'Windows':'shutdown /r /t 5','Darwin':'sudo shutdown -r now'}.get(platform.system(),'shutdown -r now')
+        os.system(cmd)
+
+    def handle_sleep(self):
+        self.jarvis_core.speak("Switching off"); sys.exit()
+
+    def handle_open_notepad(self):
+        os_cmd = platform.system()
+        if os_cmd=='Windows': pyautogui.hotkey('win'); time.sleep(1); pyautogui.write('notepad'); pyautogui.press('enter')
+        elif os_cmd=='Darwin': subprocess.call(["open","-a","TextEdit"]);
+        else: subprocess.call(["gedit"])
+
+    def handle_close_notepad(self):
+        if platform.system()=='Windows': self.handle_kill_process('notepad.exe')
+        elif platform.system()=='Darwin': self.handle_kill_process('TextEdit','TextEdit')
+        else: self.handle_kill_process('gedit')
+
+    def handle_open_terminal(self):
+        if platform.system()=='Windows': os.system('start cmd')
+        elif platform.system()=='Darwin': subprocess.call(["open","-a","Terminal"])
         else:
-            for term in ["gnome-terminal", "konsole", "x-terminal-emulator"]:
-                if os.system(f"which {term} > /dev/null 2>&1") == 0:
-                    subprocess.Popen([term])
-                    break
+            for t in ('gnome-terminal','konsole','x-terminal-emulator'):
+                if os.system(f"which {t} > /dev/null")==0:
+                    subprocess.Popen([t]); break
 
-    def query(self, query):
-            if 'wikipedia' in query:
-                self.jarvis_core.speak("Searching Wikipedia...")
-                query = query.replace("wikipedia", "", 1).strip()
-                if not query:
-                    self.jarvis_core.speak("What should I search on Wikipedia?")
-                    query = self.jarvis_core.recognize_speech().lower().strip()
-                    if not query:
-                        self.jarvis_core.speak("Sorry, I didn't catch a topic. Cancelling Wikipedia search.")
-                        return
-                try:
-                    results = wikipedia.summary(query, sentences=2)
-                    self.jarvis_core.speak("According to Wikipedia")
-                    print(results)
-                    self.jarvis_core.speak(results)
-                except wikipedia.exceptions.WikipediaException:
-                    self.jarvis_core.speak(f"Sorry, I couldn't find information on Wikipedia for '{query}'.")
-                return
+    def handle_close_terminal(self):
+        if platform.system()=='Windows': self.handle_kill_process('cmd.exe')
+        elif platform.system()=='Darwin': self.handle_kill_process('Terminal','Terminal')
+        else: self.handle_kill_process('gnome-terminal')
 
-            elif "analytics" in query:
-                webbrowser.open("https://studio.youtube.com/channel/")
-                return
+    def handle_open_camera(self):
+        cap=cv2.VideoCapture(0)
+        if not cap.isOpened(): self.jarvis_core.speak("Cannot open camera"); return
+        while True:
+            ret,frame=cap.read(); cv2.imshow('cam',frame)
+            if cv2.waitKey(50)==27: break
+        cap.release(); cv2.destroyAllWindows()
 
-            elif 'search on youtube' in query:
-                query = query.replace("search on youtube", "").strip()
-                webbrowser.open(f"https://www.youtube.com/results?search_query={query}")
-                return
+    def handle_take_screenshot(self):
+        self.jarvis_core.speak("tell me a name for the file")
+        file_name = self.jarvis_core.recognize_speech().lower()
+        self.jarvis_core.speak("Taking screenshot")
+        time.sleep(1)
+        img=pyautogui.screenshot(); img.save(f"{file_name}.png")
+        self.jarvis_core.speak(f"Saved as {file_name}.png")
 
-            elif 'open youtube' in query:
-                self.jarvis_core.speak("what would you like to watch?")
-                search_query = self.jarvis_core.recognize_speech().lower()
-                kit.playonyt(search_query)
-                return
+    def handle_calculate(self, expression: str):
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            self.jarvis_core.speak("ready")
+            print("listening...")
+            recognizer.adjust_for_ambient_noise(source)
+            audio = recognizer.listen(source)
+        try:
+            calculation = recognizer.recognize_google(audio)
+            print(calculation)
+        except Exception as e:
+            self.jarvis_core.speak("could not understand calculation")
+        def get_operator_fn(op):
+            return {
+                '+' : operator.add,
+                '-' : operator.sub,
+                'x' : operator.mul,
+                'divided' : operator.__truediv__,
+            }[op]
+        def eval_binary_expr(op1, oper, op2):
+            op1, op2 = int(op1), int(op2)
+            return get_operator_fn(oper)(op1, op2)
+        try:
+            result = eval_binary_expr(*(calculation.split()))
+            self.jarvis_core.speak("your result is")
+            self.jarvis_core.speak(result)
+        except Exception as e:
+            self.jarvis_core.speak("calculation error")
 
-            elif query.startswith('close '):
-                m = re.match(r'close\s+(\w+)', query)
-                if m:
-                    browser = m.group(1).lower()
-                    aliases = {
-                        'mozilla': 'firefox',
-                        'msedge': 'edge',
-                        'chrome': 'google',
-                    }
-                    browser = aliases.get(browser, browser)
-                    self.jarvis_core.speak(f"Closing {browser}")
-                    self.close_browser(browser)
-                    return
-                else:
-                    self.jarvis_core.speak("I couldn't understand which browser to close, sorry")
-                    return
+    def handle_get_ip(self):
+        self.jarvis_core.speak("Checking IP...")
+        try:
+            ip=requests.get('https://api.ipify.org',timeout=5).text
+            self.jarvis_core.speak(f"Your IP is {ip}")
+        except Exception:
+            self.jarvis_core.speak("Cannot retrieve IP")
 
-            elif query.startswith('open '):
-                m = re.match(r'open\s+(\w+)', query)
-                if m:
-                    browser = m.group(1).lower()
-                    aliases = {
-                        'mozilla': 'firefox',
-                        'msedge': 'edge',
-                        'google': 'chrome',
-                        'browser': 'chrome',
-                    }
-                    browser = aliases.get(browser, browser)
-                    self.jarvis_core.speak(f"What should I search in {browser}?")
-                    search_query = self.jarvis_core.recognize_speech().strip()
-                    if not search_query:
-                        search_query = None
-                    self.open_browser(browser, search_query)
-                    return
-                else:
-                    self.jarvis_core.speak("I couldn't understand which browser to open, sorry")
-                    return
+    def handle_volume_up(self):
+        self.jarvis_core.speak("Volume up")
+        for _ in range(10): pyautogui.press('volumeup')
 
-            elif 'maximize' in query and 'window' in query:
-                pyautogui.hotkey('alt', 'space')
-                time.sleep(1)
-                pyautogui.press('x')
-                return
+    def handle_volume_down(self):
+        self.jarvis_core.speak("Volume down")
+        for _ in range(10): pyautogui.press('volumedown')
 
-            elif 'minimise' in query and 'window' in query:
-                pyautogui.hotkey('alt', 'space')
-                time.sleep(1)
-                pyautogui.press('n')
-                return
+    def handle_mute(self):
+        self.jarvis_core.speak("Muting")
+        pyautogui.press('volumemute')
 
-            elif 'search' in query and ('browser' in query or 'google' in query or 'firefox' in query or 'edge' in query or 'youtube' in query):
-                query = query.replace("search", "").strip()
-                pyautogui.hotkey('alt', 'd')
-                time.sleep(0.5)
-                pyautogui.write(query, interval=0.1)
-                pyautogui.press('enter')
-                return
+    def handle_refresh(self):
+        key='command' if platform.system()=='Darwin' else 'f5'
+        pyautogui.press(key)
 
-            elif 'open' and ('window' in query or 'new' in query):
-                pyautogui.hotkey('ctrl', 'n')
-                return
+    def handle_scroll(self):
+        try:
+            self.jarvis_core.speak("Do you want me to scroll down or up?")
+            decision = self.jarvis_core.recognize_speech().lower()
+            if decision == "up": pyautogui.scroll(500) 
+            elif decision == "down": pyautogui.scroll(-500)
+            else: self.jarvis_core.speak("Couldn't recognize whether to scroll up or down, please try again")
+        except Exception:
+            return
 
-            elif 'open' in query and 'incognito' in query:
-                pyautogui.hotkey('ctrl', 'shift', 'n')
-                pyautogui.hotkey('ctrl', 'shift', 'p')
-                return
+    def handle_open_paint(self):
+        try:
+            os_cmd=platform.system()
+            if os_cmd=='Windows': os.startfile(r"C:\Windows\System32\mspaint.exe")
+            elif os_cmd=='Darwin': subprocess.call(["open","-a","Paintbrush"])
+            else:
+                if subprocess.call(["which","pinta"],stdout=subprocess.DEVNULL)==0: subprocess.call(["pinta"])
+                else: subprocess.call(["gimp"])
+        except Exception:
+            return
 
-            elif 'open' in query and 'history' in query:
-                pyautogui.hotkey('ctrl', 'h')
-                return
+    def handle_close_paint(self):
+        if platform.system()=='Windows': self.handle_kill_process('mspaint.exe')
+        elif platform.system()=='Darwin': self.handle_kill_process('Paintbrush','Paintbrush')
+        else:
+            if subprocess.call(["pgrep","pinta"],stdout=subprocess.DEVNULL)==0: self.handle_kill_process('pinta')
+            else: self.handle_kill_process('gimp')
 
-            elif 'open' in query and 'download' in query:
-                pyautogui.hotkey('ctrl', 'j')
-                return
+    def handle_who_are_you(self):
+        self.jarvis_core.speak("My name is Six. I do what I'm programmed to.")
 
-            elif 'previous' in query and 'tab' in query:
-                pyautogui.hotkey('ctrl', 'shift', 'tab')
-                return
+    def handle_who_created_you(self):
+        self.jarvis_core.speak("I was created by Krzychu in Python.")
 
-            elif 'next' in query and 'tab' in query:
-                pyautogui.hotkey('ctrl', 'tab')
-                return
+    def handle_ai_dialogue(self):
+        ai_dialogue(api_key=self.api_key)
 
-            elif 'close' in query and 'tab' in query:
-                self.jarvis_core.speak("closing current tab")
-                sys_os = platform.system()
-                if sys_os == "Darwin":
-                    pyautogui.hotkey('command', 'w')
-                else:
-                    pyautogui.hotkey('ctrl', 'w')
-                return
+    def handle_type(self, text: str):
+        self.jarvis_core.speak("Please tell me what to write")
+        text_to_type = self.jarvis_core.recognize_speech().lower()
+        try:
+            pyautogui.write(text_to_type)
+            self.jarvis_core.speak(f"I wrote: {text_to_type}")
+        except Exception as e:
+            self.jarvis_core.speak(f"I couldn't write the text, sorry: {e}")
 
-            elif 'close' in query and 'window' in query:
-                pyautogui.hotkey('ctrl', 'shift', 'w')
-                return
+    def handle_kill_process(self, proc: str, alt: str=None):
+        if platform.system()=='Windows': os.system(f"taskkill /F /IM {proc}")
+        else: os.system(f"killall {alt or proc}")
 
-            elif 'clear' in query and ('browsing' in query or 'history' in query):
-                pyautogui.hotkey('ctrl', 'shift', 'delete')
-                return
-
-            elif 'open' in query and ('file' in query or 'music' in query):
-                self.jarvis_core.speak('give me your filepath')
-                filepath = self.jarvis_core.recognize_speech().lower()
-                path = Path(filepath).expanduser()
-                if not path.exists():
-                    self.jarvis_core.speak("I couldn't locate the file, sorry")
-                    return
-                if not os.access(path, os.R_OK):
-                    self.jarvis_core.speak("I don't have sufficient permissions to open this file, sorry")
-                    return
-                sys_os = platform.system()
-                if sys_os == "Windows":
-                    os.startfile(filepath)
-                elif sys_os == "Darwin":
-                    subprocess.call(["open", filepath])
-                else:
-                    subprocess.call(["xdg-open", filepath])
-
-            elif 'time' in query:
-                current_time = datetime.datetime.now().strftime("%H:%M:%S")
-                self.jarvis_core.speak(f"the time is {current_time}")
-                return
-
-            elif 'shut down' in query and 'system' in query:
-                self.jarvis_core.speak("shutting down the system")
-                sys_os = platform.system()
-                if sys_os == "Windows":
-                    os.system("shutdown /s /t 5")
-                elif sys_os == "Darwin":
-                    os.system("sudo shutdown -h now")
-                else:
-                    os.system("shutdown -h now")
-
-            elif "restart the system" in query:
-                self.jarvis_core.speak("restarting the system")
-                sys_os = platform.system()
-                if sys_os == "Windows":
-                    os.system("shutdown /r /t 5")
-                elif sys_os == "Darwin":
-                    os.system("sudo shutdown -r now")
-                else:
-                    os.system("shutdown -r now")
-            
-            elif "close notepad" in query:
-                self.jarvis_core.speak("closing text editor")
-                sys_os = platform.system()
-                if sys_os == "Windows":
-                    self.kill_process("notepad.exe")
-                elif sys_os == "Darwin":
-                    self.kill_process("TextEdit", "TextEdit")
-                else:
-                    self.kill_process("gedit")
-
-            elif "open notepad" in query:
-                sys_os = platform.system()
-                if sys_os == "Windows":
-                    pyautogui.hotkey('win')
-                    time.sleep(1)
-                    pyautogui.write('notepad')
-                    time.sleep(1)
-                    pyautogui.press('enter')
-                    time.sleep(1)
-                    return
-                elif sys_os == "Darwin":
-                    subprocess.call(["open", "-a", "TextEdit"])
-                    time.sleep(2)
-                    return
-                else:
-                    subprocess.call(["gedit"])
-                    time.sleep(2)
-                    return
-
-            elif "open" in query and ("command prompt" in query or "cmd" in query):
-                self.jarvis_core.speak("opening terminal")
-                self.jarvis_core.open_terminal()
-                return
-
-            elif "close" in query and ("command" in query or "cmd" in query):
-                self.jarvis_core.speak("closing terminal")
-                sys_os = platform.system()
-                if sys_os == "Windows":
-                    self.jarvis_core.kill_process("cmd.exe")
-                elif sys_os == "Darwin":
-                    self.jarvis_core.kill_process("Terminal", "Terminal")
-                else:
-                    for term in ["gnome-terminal", "konsole", "x-terminal-emulator"]:
-                        self.jarvis_core.kill_process(term)
-                return
-
-            elif "open" in query and "camera" in query:
-                cap = cv2.VideoCapture(0)
-                if not cap.isOpened():
-                    self.jarvis_core.speak("Couldn't open default camera")
-                    return
-                while True:
-                    ret, frame = cap.read()
-                    cv2.imshow('webcam', frame)
-                    if cv2.waitKey(50) == 27:
-                        break
-                cap.release()
-                cv2.destroyAllWindows()
-                return
-
-            elif "go" in query and "sleep" in query:
-                self.jarvis_core.speak("alright then, i am switching off")
-                sys.exit()
-
-            elif "take" in query and "screenshot" in query:
-                self.jarvis_core.speak("tell me a name for the file")
-                file_name = self.jarvis_core.recognize_speech().lower()
-                time.sleep(3)
-                img = pyautogui.screenshot()
-                img.save(f"{file_name}.png")
-                self.jarvis_core.speak("screenshot saved")
-                return
-
-            elif "calculate" in query:
-                recognizer = sr.Recognizer()
-                with sr.Microphone() as source:
-                    self.jarvis_core.speak("ready")
-                    print("listening...")
-                    recognizer.adjust_for_ambient_noise(source)
-                    audio = recognizer.listen(source)
-                try:
-                    calculation = recognizer.recognize_google(audio)
-                    print(calculation)
-                    return
-                except Exception as e:
-                    self.jarvis_core.speak("could not understand calculation")
-                def get_operator_fn(op):
-                    return {
-                        '+' : operator.add,
-                        '-' : operator.sub,
-                        'x' : operator.mul,
-                        'divided' : operator.__truediv__,
-                    }[op]
-                def eval_binary_expr(op1, oper, op2):
-                    op1, op2 = int(op1), int(op2)
-                    return get_operator_fn(oper)(op1, op2)
-                try:
-                    result = eval_binary_expr(*(calculation.split()))
-                    self.jarvis_core.speak("your result is")
-                    self.jarvis_core.speak(result)
-                    return
-                except Exception as e:
-                    self.jarvis_core.speak("calculation error")
-
-            elif "what" in query and "ip" in query:
-                self.jarvis_core.speak("Checking your public IP address…")
-                try:
-                    response = requests.get('https://api.ipify.org', timeout=5)
-                    response.raise_for_status()
-                    ip_address = response.text.strip()
-                    self.jarvis_core.speak(f"Your IP address is {ip_address}")
-                except requests.Timeout:
-                    self.jarvis_core.speak("Request timed out. Please check your connection and try again.")
-                except requests.RequestException as e:
-                    self.jarvis_core.speak("Could not retrieve IP address right now. Please try again later.")
-                    print(f"[ERROR] IP lookup failed: {e}")
-                return
-
-            elif "volume up" in query:
-                self.jarvis_core.speak("Turning volume up")
-                for _ in range(16):
-                    pyautogui.press("volumeup")
-                return
-
-            elif "volume" in query and "down" in query:
-                self.jarvis_core.speak("Turning volume down")
-                for _ in range(16):
-                    pyautogui.press("volumedown")
-                return
-
-            elif "mute" in query:
-                self.jarvis_core.speak("Muting volume")
-                pyautogui.press("volumemute")
-                return
-
-            elif "refresh" in query:
-                try:
-                    if self.sys_os == "Darwin":
-                        pyautogui.hotkey('command', 'r')
-                    else:
-                        pyautogui.press('f5')
-                except Exception as e:
-                    self.jarvis_core.speak(f"Could not refresh: {e}")
-                    return
-
-            elif "scroll down" in query:
-                try:
-                    pyautogui.scroll(1000)
-                    return
-                except Exception as e:
-                    self.jarvis_core.speak(f"Scrolling failed, error: {e}")
-                    return
-
-            elif "open paint" in query:
-                try:
-                    if self.sys_os == "Windows":
-                        os.startfile(r"C:\Windows\System32\mspaint.exe")
-                    elif self.sys_os == "Darwin":
-                        subprocess.check_call(["open", "-a", "Paintbrush"])
-                    else:
-                        if subprocess.call(["which", "pinta"], stdout=subprocess.DEVNULL) == 0:
-                            subprocess.check_call(["pinta"])
-                        else:
-                            subprocess.check_call(["gimp"])
-                except Exception as e:
-                    self.jarvis_core.speak(f"Could not open paint, error: {e}")
-
-            elif "close paint" in query:
-                try:
-                    if self.sys_os == "Windows":
-                        self.jarvis_core.kill_process("mspaint.exe")
-                    elif self.sys_os == "Darwin":
-                        self.jarvis_core.kill_process("Paintbrush", "Paintbrush")
-                    else:
-                        if subprocess.call(["pgrep", "pinta"], stdout=subprocess.DEVNULL) == 0:
-                            self.jarvis_core.kill_process("pinta")
-                        else:
-                            self.jarvis_core.kill_process("gimp")
-                except Exception as e:
-                    self.jarvis_core.speak(f"Could not close paint: {e}")
-
-            elif "who are you" in query:
-                print("my name is six")
-                self.jarvis_core.speak("my name is six")
-                print("i can do everything that my creator programmed me to do")
-                self.jarvis_core.speak("i can do everything that my creator programmed me to do")
-                return
-
-            elif "who created you" in query:
-                print("i was created with python language by krzychu in visual studio code.")
-                self.jarvis_core.speak("i was created with python language by krzychu in visual studio code.")
-                return
-
-            elif "I" in query and "talk" in query:
-                ai_dialogue(api_key=self.api_key)
-                return
-
-            elif 'type' in query:
-                self.jarvis_core.speak("Please tell me what to write")
-                text_to_type = self.jarvis_core.recognize_speech().lower()
-                try:
-                    pyautogui.write(text_to_type)
-                    self.jarvis_core.speak(f"I wrote: {text_to_type}")
-                    return
-                except Exception as e:
-                    self.jarvis_core.speak(f"I couldn't write the text, sorry: {e}")
-                    return
-
-            response = ai_dialogue(self.jarvis_core, self.api_key, query)
-            self.jarvis_core.speak(response)
+    def query(self, text: str):
+        """Fallback handler when no intent matches."""
+        response = ai_dialogue(self.jarvis_core, self.api_key, text)
+        self.jarvis_core.speak(response)

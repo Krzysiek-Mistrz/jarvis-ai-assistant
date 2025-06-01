@@ -90,7 +90,6 @@ When Jarvis cannot map your speech to an intent fallback happens (I mean jarvis 
 | `close_paint`     | Closes Paint/GIMP/Pinta. No parameters.                       |
 | `who_are_you`     | Tells the assistant's name. No parameters.                    |
 | `who_created_you` | Tells who created the assistant. No parameters.               |
-| `ai_dialogue`     | Engages in free-form AI dialogue. No parameters.              |
 | `type`            | Types dictated text. Requires `text`.                         |
 | `kill_process`    | Kills a process. Requires `proc`, optional `alt`.             |  
 

@@ -127,4 +127,4 @@ jarvis_window_assistant/
 
 ## License
 
-GNU GPL V3 @ Krzychu 2025
+Creative Commons BY-NC-ND 4.0 @ Krzychu 2025

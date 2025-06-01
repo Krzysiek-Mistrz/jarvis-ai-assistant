@@ -53,9 +53,9 @@ INTENTS = [
     {"name": "close_paint",      "description": "Closes Paint/GIMP/Pinta. No parameters."},
     {"name": "who_are_you",      "description": "Tells the assistant's name. No parameters."},
     {"name": "who_created_you",  "description": "Tells who created the assistant. No parameters."},
-    {"name": "ai_dialogue",      "description": "Engages in free-form AI dialogue. No parameters."},
     {"name": "type",             "description": "Types dictated text. Requires 'text'."},
-    {"name": "kill_process",     "description": "Kills a process. Requires 'proc', optional 'alt'."}
+    {"name": "kill_process",     "description": "Kills a process. Requires 'proc', optional 'alt'."},
+    {"name": "write_code",       "description": "Generates code for a specified goal in the user-specified programming language."}
 ]
 
 def ai_dialogue(jarvis, api_key: str, prompt: str, max_output_tokens: int = 150, temperature: float = 0.7) -> str:

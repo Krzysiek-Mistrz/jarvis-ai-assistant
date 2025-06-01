@@ -14,12 +14,74 @@ import speech_recognition as sr
 import subprocess
 from pathlib import Path
 from .llm import ai_dialogue
+from google import genai
+from google.genai import types
+import re
 
 
 class Query(object):
     def __init__(self, jarvis, api_key):
         self.jarvis_core = jarvis
         self.api_key = api_key
+
+    def handle_write_code(self):
+        self.jarvis_core.speak("What should the code do?")
+        goal = self.jarvis_core.recognize_speech()
+        if not goal:
+            self.jarvis_core.speak("Sorry, I did not catch the goal.")
+            return
+        self.jarvis_core.speak("Which programming language should I use?")
+        language = self.jarvis_core.recognize_speech().lower()
+        if not language:
+            self.jarvis_core.speak("Sorry, I did not catch the language.")
+            return
+        client = genai.Client(api_key=self.api_key)
+        ext_map = {
+            "python": "py", "javascript": "js", "typescript": "ts",
+            "java": "java", "c++": "cpp", "c": "c", "c#": "cs",
+            "go": "go", "ruby": "rb", "php": "php", "rust": "rs",
+            "swift": "swift", "kotlin": "kt"
+        }
+        system_prompt = "You are an intent programming language classifier. Map the user's specified language to one of these programming languages:\n"
+        for lang in ext_map.keys():
+            system_prompt += f"- {lang}\n"
+        system_prompt += (
+            "\nRespond ONLY with a valid string object in qotes selected from the languages above, for example proper response should be like this: \"python\" \n"
+            "Do not include any additional text."
+        )
+        gen_config = types.GenerateContentConfig(
+            max_output_tokens=20,
+            temperature=0.2,
+        )
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=system_prompt,
+            config=gen_config
+        )
+        raw = response.text.strip()
+        print('\n',raw[1:-1],'\n')
+        ext = ext_map.get(raw[1:-1], language)
+        ts = datetime.datetime.now().strftime("%d%H%M")
+        filename = f"code_{ts}.{ext}"
+        filepath = os.path.join(os.getcwd(), filename)
+        system_prompt = "You are a helpful coding assistant. Provide only the code."
+        user_prompt = f"Write {language} code that achieves this goal: {goal}."
+        gen_config = types.GenerateContentConfig(max_output_tokens=1500, temperature=0.2)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[system_prompt, user_prompt],
+            config=gen_config
+        )
+        code_text = response.text.strip()
+        code_text = re.sub(r"\A```[^\n]*\n", "", code_text)
+        code_text = re.sub(r"\n```+\s*\Z", "", code_text)
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(code_text)
+        try:
+            subprocess.Popen(["code", filepath])
+            self.jarvis_core.speak(f"I've created {filename} and opened it in VSCode.")
+        except Exception as e:
+            self.jarvis_core.speak(f"Created {filename}, but could not open in VSCode: {e}")
 
     def handle_wikipedia(self, topic: str = None):
         """

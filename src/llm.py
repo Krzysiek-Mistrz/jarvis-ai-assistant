@@ -1,6 +1,9 @@
 from google import genai
 from google.genai import types
 import json
+import ast
+import shutil
+import os
 
 # TODO
 # Implement functuion to open external cli to chat with jarvis
@@ -124,3 +127,66 @@ def classify_intent(text: str, api_key: str, max_output_tokens: int = 100, tempe
     except Exception:
         intent, params = "fallback", {}
     return intent, params
+
+def generate_new_intent(command: str, api_key: str, max_output_tokens: int = 150, temperature: float = 0.0) -> tuple[str, str]:
+    """
+    We simulate using Google Gemini (genai) to generate a name and description for a new intent
+    based on a user command
+    """
+    client = genai.Client(api_key=api_key)
+    prompt = f"User said: '{command}'. How would you name an intent in keyword form (snake_case) and provide its description? Please return intent and description in this format: intent:description"
+    gen_config = types.GenerateContentConfig(
+        max_output_tokens=max_output_tokens,
+        temperature=temperature,
+    )
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[command],
+        config=gen_config
+    )
+    print('\n',response,'\n')
+    response = response.text.strip()
+    intent_name, intent_description = response.split(":", 1)
+    intent_name = intent_name.strip()
+    intent_description = intent_description.strip()
+    return intent_name, intent_description
+
+def add_intent_to_llm(llm_path: str, intent_name: str, intent_description: str):
+    """
+    Adds a new intent (a dictionary of 'name' and 'description') to 
+    the INTENTS list in llm.py. If the intent exists, do nothing.
+    """
+    with open(llm_path, "r", encoding="utf-8") as f:
+        source = f.read()
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "INTENTS":
+                    intents_list = node.value
+                    if not isinstance(intents_list, ast.List):
+                        raise ValueError("INTENTS is not a list")
+                    for elt in intents_list.elts:
+                        if isinstance(elt, ast.Dict):
+                            keys = [k.value for k in elt.keys if isinstance(k, ast.Constant)]
+                            values = [v.value for v in elt.values if isinstance(v, ast.Constant)]
+                            if "name" in keys:
+                                idx = keys.index("name")
+                                existing_name = values[idx] if idx < len(values) else None
+                                if existing_name == intent_name:
+                                    print(f"Intent '{intent_name}' already exists in llm.py. Cannot add a duplicate.")
+                                    return
+                    new_intent_dict = ast.Dict(
+                        keys=[ast.Constant(value="name"), ast.Constant(value="description")],
+                        values=[ast.Constant(value=intent_name), ast.Constant(value=intent_description)]
+                    )
+                    intents_list.elts.append(new_intent_dict)
+                    new_code = ast.unparse(tree)
+                    backup_path = llm_path + ".bak"
+                    if not os.path.exists(backup_path):
+                        shutil.copy(llm_path, backup_path)
+                    with open(llm_path, "w", encoding="utf-8") as f:
+                        f.write(new_code)
+                    print(f"Intent added '{intent_name}' to llm.py.")
+                    return
+    raise RuntimeError("Cannot find INTENTS in llm.py")

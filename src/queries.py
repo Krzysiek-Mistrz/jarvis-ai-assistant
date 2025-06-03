@@ -13,7 +13,6 @@ import os
 import speech_recognition as sr
 import subprocess
 from pathlib import Path
-from .llm import ai_dialogue
 from google import genai
 from google.genai import types
 import re
@@ -23,6 +22,27 @@ class Query(object):
     def __init__(self, jarvis, api_key):
         self.jarvis_core = jarvis
         self.api_key = api_key
+
+    def handle_ai_dialogue(self, prompt: str):
+        """
+        AI dialogue using Google Gemini.
+        prompt: tekst, który użytkownik chce przekazać AI.
+        """
+        self.jarvis_core.speak("Thinking...")
+        client = genai.Client(api_key=self.api_key)
+        system_prompt = "Please be concise and to the point."
+        full_contents = [system_prompt, prompt]
+        gen_config = types.GenerateContentConfig(
+            max_output_tokens=150,
+            temperature=0.7,
+        )
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=full_contents,
+            config=gen_config
+        )
+        text = response.text.strip()
+        self.jarvis_core.speak(text)
 
     def handle_write_code(self):
         self.jarvis_core.speak("What should the code do?")
@@ -224,23 +244,35 @@ class Query(object):
     def handle_clear_history(self):
         pyautogui.hotkey('ctrl','shift','delete')
 
-    def handle_open_file(self):
-        self.jarvis_core.speak('give me your filepath')
-        filepath = self.jarvis_core.recognize_speech().lower()
+    def handle_open_file(self, filepath: str = None):
+        """
+        Opens a file. Jeżeli Gemini przekaże parametr 'filepath', to z niego korzystamy,
+        w przeciwnym razie pytamy użytkownika o ścieżkę.
+        """
+        if not filepath:
+            self.jarvis_core.speak("Please give me the file path.")
+            filepath = self.jarvis_core.recognize_speech().lower()
+            if not filepath:
+                self.jarvis_core.speak("Sorry, I did not catch the filepath.")
+                return
         path = Path(filepath).expanduser()
         if not path.exists():
-            self.jarvis_core.speak("I couldn't locate the file, sorry")
+            self.jarvis_core.speak(f"I couldn't locate the file: {filepath}, sorry.")
             return
         if not os.access(path, os.R_OK):
-            self.jarvis_core.speak("I don't have sufficient permissions to open this file, sorry")
+            self.jarvis_core.speak(f"I don't have sufficient permissions to open {filepath}, sorry.")
             return
         sys_os = platform.system()
-        if sys_os == "Windows":
-            os.startfile(filepath)
-        elif sys_os == "Darwin":
-            subprocess.call(["open", filepath])
-        else:
-            subprocess.call(["xdg-open", filepath])
+        try:
+            if sys_os == "Windows":
+                os.startfile(str(path))
+            elif sys_os == "Darwin":
+                subprocess.call(["open", str(path)])
+            else:
+                subprocess.call(["xdg-open", str(path)])
+            self.jarvis_core.speak(f"Opening {path.name}…")
+        except Exception as e:
+            self.jarvis_core.speak(f"I couldn't open the file, sorry. Error: {e}")
 
     def handle_time(self):
         now = datetime.datetime.now().strftime('%H:%M:%S')
@@ -386,9 +418,6 @@ class Query(object):
     def handle_who_created_you(self):
         self.jarvis_core.speak("I was created by Krzychu in Python.")
 
-    def handle_ai_dialogue(self):
-        ai_dialogue(api_key=self.api_key)
-
     def handle_type(self, text: str):
         self.jarvis_core.speak("Please tell me what to write")
         text_to_type = self.jarvis_core.recognize_speech().lower()
@@ -401,8 +430,3 @@ class Query(object):
     def handle_kill_process(self, proc: str, alt: str=None):
         if platform.system()=='Windows': os.system(f"taskkill /F /IM {proc}")
         else: os.system(f"killall {alt or proc}")
-
-    def query(self, text: str):
-        """Fallback handler when no intent matches."""
-        response = ai_dialogue(self.jarvis_core, self.api_key, text)
-        self.jarvis_core.speak(response)

@@ -6,7 +6,8 @@ import time
 import tempfile
 from gtts import gTTS
 from playsound import playsound
-from .queries import Query
+from importlib import reload
+from . import queries
 from .llm import classify_intent
 
 class Jarvis:
@@ -89,8 +90,9 @@ class Jarvis:
                 self.speak("Goodbye!")
                 break
             intent, params = classify_intent(user_text, self.api_key)
+            reload(queries)
             #print(f"[DEBUG] classify_intent returned -> intent: '{intent}', params: {params}")
-            query_handler = Query(self, self.api_key)
+            query_handler = queries.Query(self, self.api_key)
             if intent and intent != "fallback":
                 normalized = intent.replace("-", "_").lower()
                 handler_name = f"handle_{normalized}"
@@ -103,4 +105,4 @@ class Jarvis:
                         print(f"[ERROR] Intent handler '{handler_name}' raised: {e}")
                 else:
                     print(f"[WARN] No handler found for intent '{intent}' (tried '{handler_name}')")
-            query_handler.query(user_text)
+            #query_handler.query(user_text)
